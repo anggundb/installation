@@ -1,1 +1,152 @@
+# apt-get update
+
+Install web server:
+  # apt-get install nginx
+Check web server in browser:
+  http://ip_server
+  # systemctl stop nginx.service
+  # systemctl start nginx.service
+  # systemctl enable nginx.service
+
+Install database server: 
+  # apt-get install mariadb-server mariadb-client
+  # systemctl stop mysql.service
+  # systemctl start mysql.service
+  # systemctl enable mariadb.service
+  # mysql_secure_installation
+    enter current password for root (enter for none): press enter
+    set root password?[y/n]: y
+    new password: enter password
+    re-enter new password: repeat password
+    remove anonymous users?[y/n]: y
+    disallow root login remotely?[y/n]: y
+    remove test database and access to it?[y/n]: y
+    reload privilege tables now?[y/n]: y
+Mysql configuration:
+  # nano /etc/mysql/mariadb.conf.d/50-server.cnf
+  add below line [mysql]:
+    default_storage_engine = innodb
+    innodb_file_per_table = 1
+    innodb_file_format = Barracuda
+    innodb_large_prefix = 1
+  save (crtl + x, y, enter)  
+  # systemctl restart mariadb.service 
+  
+Install php7.4-fpm:
+  # apt-get install apt-transport-https lsb-release ca-certificates
+  # wget -0 /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+  # echo "deb https://packages.sury.org/php/ $(lsb_release-sc) main" | sudo tee /etc/apt/sources.list.d/php.list
+  # apt-get update
+  # apt-get upgrade
+  # apt-get install php7.4-fpm
+  # apt-get install aspell graphviz clamax php7.4-common php7.4-mbstring php7.4-xmlrpc php7.4-soap php7.4-gd php7.4-xml php7.4-intl php7.4-mysql php7.4-cli php7.4-ldap 
+    php7.4-zip php7.4-curl
+  reboot server 
+  php configuration:
+    # nano /etc/php/7.4/fpm/php.ini
+      file_uploads = On
+      allow_url_fopen = On 
+      memory_limit = 128M
+      upload_max_filesize = 8M
+      max_execution_time = 60
+      post_max_size = 8M
+      cgi.fix_pathinfo = 0
+      
+Create Moodle Database:
+  # mysql -u root -p
+  # CREATE DATABASE moodle;
+  # CREATE USER 'moodleuser'@'localhost' IDENTIFIED BY 'sekolah';
+  # GRANT ALL ON moodle.*TO 'moodleuser'@'localhost' IDENTIFIED BY 'sekolah' WITH GRANT OPTION;
+  # FLUSH PRIVILEGES;
+  # EXIT;
+
+Install Moodle:
+  # cd /tmp
+  # wget https://download.moodle.org/download.php/direct/stables38/moodle_latest-38.tgz
+  # tar -zxvf moodle_latest-38.tgz
+  # mv moodle /var/www/html/moodle
+  Create a moodledata folder for the moodle database:
+    # cd /var
+    # mkdir /var/moodledata
+  Change modify the directory permission folder moodle and moodledata:
+    # chown -R www-data /var/www/html/moodle
+    # chmod -R 777 /var/www/html/moodle
+    # chown -R www-data /var/moodledata
+    # chmod -R 777 /var/moodledata
+    # reboot
+
+Moodle site configuration on nginx:
+  # nano /etc/nginx/nginx.conf
+    [...]
+    keepalive_timeout 2;
+    [...]
+Configuration file settings in nginx for moodle. In this file will be controlled how the user can access the Moodle content.
+  # nano /etc/nginx/sites-available/moodle
+    write in moodle file:
+    server {
+    listen 80;
+    listen [::]:80;
+    root /var/www/html/moodle;
+    index index.php index.html index.htm;
+    server_name 192.168.200.1; >> ip server
+    
+    location / {
+    try_files $uri $uri/ = 404;
+    }
+    
+    client_max_body_size 8M;
+    
+    location /dataroot/ {
+    internal;
+    alias /var/moodledata/;
+    }
+    
+    location ~[^/]\.php(/|$) {
+    include snippets/fastcgi-php.conf;
+    fastcgi_pass unix: /var/run/php/php7.4-fpm.sock;
+    fastcgi_param SCRIPT_FILENAME $document_root $fastcgi_script_name;
+    include fastcgi_params;
+    }
+    
+    }
+    
+Enable moodle on nginx by duplicating:
+  # ln -s /etc/nginx/sites-available/moodle /etc/nginx/sites-enabled/
+
+Confirm configuration:
+  # nginx -t 
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successfull
+To ensure php7.4-fpm, create info.php file in document root /var/www/html/moodle:
+  # nano /var/www/html/moodle/info.php
+    fill in:
+    <?php
+    phpinfo();
+    ?>
+  # systemctl restart nginx.service
+Check info.php in the browser, type http://ip_server/info.php
+If on line 'serverAPI' shows "FPM/FastCGI" then php7.4-fpm installation is correct and running fine.
+
+
+Run moodle:
+Type http://ip_server/ in browser.
+  web address : http://ipserver
+  Moodle directory : /var/www/html/moodle
+  Data directory   : /var/moodledata
+  Type             : MariaDB (native/mariadb)
+  Database host    : localhost
+  Database name    : moodle
+  Database user    : moodleuser
+  Database password: sekolah
+  Table prefix     : mdl_
+  Database port    : empty
+  Unix socket      : empty
+  
+General 
+  Username         : admin
+  New password     : 123
+  First name       : admin
+  Surname          : user
+  Email            : sekolah@gmail.com
+OK
 
